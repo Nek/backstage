@@ -17,7 +17,13 @@
 import knex from 'knex';
 import path from 'path';
 import { Database } from './Database';
-import { AddDatabaseLocation, DatabaseLocation } from './types';
+import {
+  DatabaseComponent,
+  AddDatabaseLocation,
+  DatabaseLocation,
+  AddDatabaseComponent,
+} from './types';
+import * as Knex from 'knex';
 
 describe('Database', () => {
   const database = knex({
@@ -25,15 +31,44 @@ describe('Database', () => {
     connection: ':memory:',
     useNullAsDefault: true,
   });
-  database.client.pool.on('createSuccess', (_eventId: any, resource: any) => {
-    resource.run('PRAGMA foreign_keys = ON', () => {});
-  });
-
   beforeEach(async () => {
+    await database.raw('PRAGMA foreign_keys = ON');
     await database.migrate.latest({
       directory: path.resolve(__dirname, 'migrations'),
       loadExtensions: ['.ts'],
     });
+  });
+
+  it('adds or updates component', async () => {
+    await database.raw('PRAGMA foreign_keys = OFF');
+    const db = new Database(database);
+
+    const componentName = 'SomeComponent';
+
+    const addInput = {
+      name: componentName,
+    };
+    const addOutput: DatabaseComponent = {
+      id: expect.anything(),
+      name: componentName,
+      locationId: null,
+    };
+
+    db.addOrUpdateComponent(addInput);
+
+    let component = await db.component(componentName);
+    expect(component).toEqual(addOutput);
+
+    const updateInput = { ...addInput, locationId: '123' };
+
+    db.addOrUpdateComponent(updateInput);
+    component = await db.component(componentName);
+    const updateOutput: DatabaseComponent = {
+      id: expect.anything(),
+      name: componentName,
+      locationId: '123',
+    };
+    expect(component).toEqual(updateOutput);
   });
 
   it('manages locations', async () => {

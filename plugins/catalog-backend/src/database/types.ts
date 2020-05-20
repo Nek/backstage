@@ -18,7 +18,7 @@ import * as yup from 'yup';
 
 export type DatabaseComponent = {
   id: string;
-  locationId?: string;
+  locationId: string | null;
   name: string;
 };
 
